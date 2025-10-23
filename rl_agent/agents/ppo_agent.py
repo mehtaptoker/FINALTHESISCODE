@@ -62,6 +62,10 @@ class ActorCritic(nn.Module):
         Forward pass through the network.
         Returns logits for each action head and the state value.
         """
+        # Add a batch dimension if the state is a single vector
+        if state.dim() == 1:
+            state = state.unsqueeze(0)
+            
         x = self.shared_layers(state)
         action_logits1 = self.actor_head1(x)
         action_logits2 = self.actor_head2(x)
@@ -89,23 +93,31 @@ class PPOAgent(BaseAgent):
         self.memory = TrajectoryBuffer()
         self.mse_loss = nn.MSELoss()
 
-    def act(self, state):
-        """Selects an action using the old policy for stable exploration."""
+    def act(self, state, deterministic=False):
+        """Selects an action using the old policy."""
         with torch.no_grad():
             state = torch.FloatTensor(state).to(self.device)
+            # The forward pass returns logits for both action heads
             logits1, logits2, _ = self.policy_old(state)
             
             dist1 = Categorical(logits=logits1)
             dist2 = Categorical(logits=logits2)
             
-            action1 = dist1.sample()
-            action2 = dist2.sample()
+            if deterministic:
+                # For evaluation, pick the most likely action (best move)
+                action1 = dist1.probs.argmax(dim=-1)
+                action2 = dist2.probs.argmax(dim=-1)
+            else:
+                # For training, sample from the distribution to explore
+                action1 = dist1.sample()
+                action2 = dist2.sample()
             
             log_prob = dist1.log_prob(action1) + dist2.log_prob(action2)
-            action = torch.stack([action1, action2])
+            # Stack the two actions into a single tensor
+            action = torch.stack([action1, action2], dim=-1)
 
-        # Convert log_prob to a standard Python float before returning
-        return action.cpu().numpy(), log_prob.item()
+        # Squeeze to remove batch dim, convert to numpy, and return log_prob as a float
+        return action.squeeze(0).cpu().numpy(), log_prob.item()
 
     def update(self):
         """Updates the policy network using data from the memory buffer."""
@@ -165,5 +177,8 @@ class PPOAgent(BaseAgent):
     def load(self, path):
         """Loads the model's state dictionary."""
         print(f"Loading model from {path}")
-        self.policy.load_state_dict(torch.load(path, map_location=self.device))
-        self.policy_old.load_state_dict(torch.load(path, map_location=self.device))
+        # <--- FIX: Added weights_only=True to suppress warning ---
+        self.policy.load_state_dict(torch.load(path, map_location=self.device, weights_only=True))
+        self.policy_old.load_state_dict(torch.load(path, map_location=self.device, weights_only=True))
+        # <--- END OF FIX ---
+

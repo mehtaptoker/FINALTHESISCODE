@@ -31,7 +31,7 @@ class GearEnv(gym.Env):
         # --- Run Pathfinding to get the optimal path for the simulator ---
         processed_json_path = config["json_path"]
         pathfinder = Pathfinder()
-        self.optimal_path = pathfinder.find_path(processed_json_path)
+        self.optimal_path = pathfinder.find_path(processed_json_path, margin=0.5)
         
         if not self.optimal_path:
             raise RuntimeError(f"Pathfinder failed to find a path for {processed_json_path}")
@@ -62,7 +62,7 @@ class GearEnv(gym.Env):
             output_shaft=tuple(data['output_shaft'].values()),
             boundaries=data['boundaries'],
             gear_factory=gear_factory,
-            clearance_margin=config.get("clearance_margin", 1.0)
+            clearance_margin=config.get("clearance_margin", 0.5)
         )
 
     def _state_to_observation(self, state: dict) -> np.ndarray:

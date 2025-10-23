@@ -1,0 +1,19 @@
+{
+  "normalized_space": {
+    "boundaries": [
+      [0, 0],
+      [200, 0],
+      [200, 100],
+      [0, 100]
+    ],
+    "input_shaft": {
+      "x": 30,
+      "y": 50
+    },
+    "output_shaft": {
+      "x": 170,
+      "y": 50
+    },
+    "obstacles": []
+  }
+}

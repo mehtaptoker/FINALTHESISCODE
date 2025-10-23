@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import sys
 import os
-sys.path.append("../")
-#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+#sys.path.append("../")
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from matplotlib.patches import Polygon, Circle
 from typing import List, Tuple, Dict, Any
 from common.data_models import SystemDefinition, Boundary, Point, Constraints, Gear
@@ -124,8 +124,8 @@ class Renderer:
 
         # print(path)
         # Plot path
-        path_x = [p[0] for p in path]
-        path_y = [p[1] for p in path]
+        path_x = [p.x for p in path]
+        path_y = [p.y for p in path]
         ax.plot(path_x, path_y, 'm-', linewidth=2, label='Path')
 
         # Set plot properties
@@ -151,8 +151,8 @@ class Renderer:
         fig, ax = Renderer.setup_plot_from_processed_data(processed_data_path)
 
         # Teken het pad
-        path_x = [p[0] for p in path]  # Gebruik index 0 voor x
-        path_y = [p[1] for p in path]  # Gebruik index 1 voor y
+        path_x = [p.x for p in path]
+        path_y = [p.y for p in path]
         ax.plot(path_x, path_y, 'g--', linewidth=1, label='Optimal Path')
 
         # Teken de clearance cirkels
