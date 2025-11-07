@@ -7,9 +7,12 @@ import torch
 # ---------------------------------------------------------------------
 # Global CPU-only mode to avoid CUDA surprises in evaluation
 # ---------------------------------------------------------------------
-torch.cuda.is_available = lambda: False
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
+#torch.cuda.is_available = lambda: False
+#os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
+# Stel de device in voordat de agent wordt aangemaakt
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
 # Make project root importable (tests/ -> project root)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -111,7 +114,6 @@ def _normalize_sim_geometry(sim):
     except Exception:
         pass
 
-
 # ---------------------------------------------------------------------
 # 3) Main: RL-driven gear generation
 # ---------------------------------------------------------------------
@@ -196,31 +198,24 @@ def run_rl_gear_generation(example_name="Example3", model_path=None):
     print(f"State dimension: {state_dim}")
     print(f"Action dimensions: {action_dims}")
 
-    # Force PPOAgent to CPU temporarily by wrapping its __init__
-    original_init = PPOAgent.__init__
 
-    def cpu_init(self, *args, **kwargs):
-        original_init(self, *args, **kwargs)
-        self.device = torch.device("cpu")
-        self.policy = self.policy.to(self.device)
-        self.policy_old = self.policy_old.to(self.device)
 
-    PPOAgent.__init__ = cpu_init
 
     agent = PPOAgent(
         state_dim=state_dim,
         action_dims=action_dims,
         lr=0.0,        # eval only
         gamma=0.0,     # eval only
-        clip_epsilon=0 # eval only
+        clip_epsilon=0, # eval only
+        device=device
     )
 
     # Restore original init
-    PPOAgent.__init__ = original_init
+    #PPOAgent.__init__ = original_init
 
     print(f"Loading trained model from: {model_path}")
-    agent.policy.load_state_dict(torch.load(model_path, map_location="cpu"))
-    agent.policy_old.load_state_dict(torch.load(model_path, map_location="cpu"))
+    agent.policy.load_state_dict(torch.load(model_path, map_location=device))
+    agent.policy_old.load_state_dict(torch.load(model_path, map_location=device))
     agent.policy.eval()
     agent.policy_old.eval()
 
