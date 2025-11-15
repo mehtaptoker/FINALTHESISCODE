@@ -172,11 +172,12 @@ class GearTrainSimulator:
 
     # VERVANG UW HUIDIGE step() METHODE IN simulator.py MET DEZE:
 
+    # VERVANG UW HUIDIGE step() METHODE IN simulator.py MET DEZE:
+
     def step(self, action: tuple):
         """Plaatst een nieuw tussenliggend tandwiel."""
         driven_teeth, driving_teeth = action
 
-        # (Check op minimum tanden)
         if driven_teeth < self.min_teeth or driving_teeth < self.min_teeth:
             error_msg = f"Gear teeth count too small (min {self.min_teeth})"
             return self._get_state(), -10.0, True, {"error": error_msg}
@@ -184,8 +185,7 @@ class GearTrainSimulator:
         if not self.last_gear:
              return self._get_state_on_error(), 0.0, True, {"error": "Simulator niet correct gereset (geen last_gear)."}
 
-        # --- 1. Probeer Tangentieel te Plaatsen ---
-        # (Deze code blijft ongewijzigd)
+        # --- 1. Probeer Tangentieel te Plaatsen (Ongewijzigd) ---
         new_gear: Optional[GearSet] = None
         s_star: Optional[float] = None
         try:
@@ -220,7 +220,7 @@ class GearTrainSimulator:
         # --- 3. Plaatsing is Geldig: Update Staat (Ongewijzigd) ---
         self.distance_on_path = s_star
         self.current_path_index = self._find_segment_index(s_star)
-        self.gears.insert(-1, new_gear)
+        self.gears.insert(-1, new_gear) # Voeg in *voor* de output gear
         self.last_gear = new_gear
         
         # --- 4. Bereken Reward & Check Succesconditie ---
@@ -244,7 +244,7 @@ class GearTrainSimulator:
         reward += 5.0 * dist_reduction
         self._prev_dist_to_target = current_dist_to_target
 
-        # --- START CORRECTIE: EXPLICIETE BOTSING CHECK ---
+        # --- START CORRECTIE: SUCCES CHECK ---
         
         # Bereken de AFSTAND tot de output gear
         dist_to_output_center = self._distance(self.last_gear.center, self.output_gear.center)
@@ -252,25 +252,26 @@ class GearTrainSimulator:
         # Bereken de VEREISTE AFSTAND voor een perfecte mesh
         required_mesh_distance = self.last_gear.driving_radius + self.output_gear.driven_radius
         
-        # Bepaal de tolerantie voor succesvolle mesh (bijv. 6.0mm)
-        MESH_TOLERANCE = 0.50 
+        # Bepaal de fout (Positief = opening, Negatief = overlap)
+        error = dist_to_output_center - required_mesh_distance
+        
+        # Tolerantie voor een succesvolle mesh (alleen een OPENING)
+        MESH_TOLERANCE = 0.005 # Max 6.0mm opening is succes
+        
+        # Tolerantie voor een botsing (elke OVERLAP)
+        COLLISION_TOLERANCE = -0.001 # Max 0.1mm overlap is toegestaan
 
-        # 1. Check op BOTSING (overlap is groter dan tolerantie)
-        is_colliding = dist_to_output_center < (required_mesh_distance - MESH_TOLERANCE)
-        
-        # 2. Check op MESH (afstand is binnen de tolerantie)
-        is_meshed = abs(dist_to_output_center - required_mesh_distance) <= MESH_TOLERANCE
-        
-        if is_colliding:
-            # BOTSING! Dit is een foute actie.
-            reward -= 50.0  # Zware straf voor het botsen met het einddoel
+        # 1. Check op BOTSING (error is te negatief)
+        if error < COLLISION_TOLERANCE:
+            reward -= 150.0  # Zware straf voor het botsen met het einddoel
             done = True
-            info["error"] = "Collision with output gear (overshot target)"
+            info["error"] = f"Collision with output gear (overlap: {error:.2f})"
 
-        elif is_meshed:
+        # 2. Check op MESH (error is 0 of een kleine opening)
+        elif error <= MESH_TOLERANCE:
             # SUCCES! We zijn binnen de tolerantie.
             done = True
-            info["success"] = "Finale mesh (binnen tolerantie) bereikt."
+            info["success"] = f"Finale mesh bereikt (opening: {error:.2f})."
             
             # Bereken de Koppel Kwaliteit
             current_ratio = self.calculate_current_torque_ratio()
@@ -281,7 +282,7 @@ class GearTrainSimulator:
             
             print(f"DEBUG MESH: Ratio={current_ratio:.2f}, Fout={torque_error:.2f}, Kwaliteit={torque_quality:.2f}, Beloning={final_reward:.2f}")
 
-        # (Als 'is_colliding' en 'is_meshed' beide False zijn, is er nog een opening)
+        # (Als 'error > MESH_TOLERANCE', is de opening te groot en gaat de episode door)
         
         # --- EINDE CORRECTIE ---
 

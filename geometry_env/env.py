@@ -70,7 +70,8 @@ class GearEnv(gym.Env):
 
         # --- 3. Padvinder uitvoeren ---
         pathfinder = Pathfinder()
-        self.optimal_path = pathfinder.find_path(self.processed_json_path, margin=self.boundary_margin)
+        #self.optimal_path = pathfinder.find_path(self.processed_json_path, margin=self.boundary_margin)
+        self.optimal_path = pathfinder.find_centerline_path(self.processed_json_path, margin=self.boundary_margin)
         
         if not self.optimal_path:
             print(f"WAARSCHUWING: Kon geen pad vinden met marge {self.boundary_margin}. Probeert opnieuw met minimale marge (0.1)...")

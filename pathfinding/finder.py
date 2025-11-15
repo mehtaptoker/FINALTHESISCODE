@@ -30,7 +30,7 @@ class Pathfinder:
                     heappush(open_set, (f_score, neighbor))
         return None
 
-    def find_centerline_path(self, processed_data_path: str, step_size: float = 0.1, smoothing_iterations: int = 500, smoothing_amount: float = 0.2) -> Dict[str, Any] | None:
+    def find_centerline_path(self, processed_data_path: str, margin=5.0,  step_size: float = 0.1, smoothing_iterations: int = 500, smoothing_amount: float = 0.2) -> Dict[str, Any] | None:
         """
         Finds a centered path using path smoothing.
         
@@ -40,7 +40,7 @@ class Pathfinder:
             smoothing_amount: How much to move the path in each iteration.
         """
         # Step 1: Get the shortest path as a starting point. Use a tiny margin.
-        shortest_path_list = self.find_path(processed_data_path, margin=0.1,step_size=step_size)
+        shortest_path_list = self.find_path(processed_data_path, margin=margin,step_size=step_size)
         if not shortest_path_list:
             return None
 

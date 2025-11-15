@@ -1,7 +1,0 @@
-{
-  "torque_ratio": 2.0,
-  "num_intermediate_gears": 3,
-  "boundary_margin": 15.0,
-  "min_gear_size": 10,
-  "max_gear_size": 20
-}
