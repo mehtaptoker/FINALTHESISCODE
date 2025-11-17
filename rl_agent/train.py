@@ -118,7 +118,9 @@ def main():
     all_episode_rewards = []
     
     # --- ADDED: Tracking variables for the best results ---
-    best_episode_reward = -float('inf')
+    #best_episode_reward = -float('inf')
+    # Start op 10.0. Hierdoor worden "crashes" (die nu negatief scoren) NOOIT opgeslagen.
+    best_episode_reward = 10.0
     best_model_path = os.path.join(args.output_dir, "ppo_gear_placer_best.pt")
     # This is the dedicated path for your visualization JSON:
     best_layout_path = os.path.join(args.output_dir, "best_gear_layout.json") 

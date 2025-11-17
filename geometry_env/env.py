@@ -24,11 +24,6 @@ class GearEnv(gym.Env):
     """
     metadata = {"render_modes": [], "render_fps": 4}
 
-    # In geometry_env/env.py
-
-    # In geometry_env/env.py
-
-    # VERVANG UW HUIDIGE __init__ METHODE VOLLEDIG MET DEZE:
     def __init__(self, config: dict):
         """
         Initializes the environment, including pathfinding.
@@ -85,8 +80,8 @@ class GearEnv(gym.Env):
         
         # Observatieruimte (inclusief 'consecutive_failures')
         # [last_x, last_y, last_teeth, last_radius, dist_to_target, consecutive_failures]
-        low_bounds = np.array([-500, -500, self.min_teeth, 0, 0, 0], dtype=np.float32)
-        high_bounds = np.array([500, 500, self.max_teeth, 500, 1000, 10], dtype=np.float32)
+        low_bounds = np.array([-500, -500, self.min_teeth, 0, 0, 0, 0], dtype=np.float32)
+        high_bounds = np.array([500, 500, self.max_teeth, 500, 1000, 10, 500], dtype=np.float32)
         self.observation_space = spaces.Box(low=low_bounds, high=high_bounds, dtype=np.float32)
 
         # --- 5. Initialiseer de Simulatie Engine ---
@@ -122,6 +117,8 @@ class GearEnv(gym.Env):
 
     def _state_to_observation(self, state: dict, consecutive_failures: int) -> np.ndarray:
         """Converteert de simulator's state dictionary naar een NumPy array."""
+        clearance = self.simulator.get_available_clearance() if hasattr(self.simulator, 'get_available_clearance') else 0.0
+
         if state is None:
             # Maak een dummy state als de simulator faalt bij reset
             return np.array([
@@ -131,7 +128,8 @@ class GearEnv(gym.Env):
                 getattr(self.simulator, '_distance', lambda p1, p2: 100)(
                     self.simulator.input_shaft, self.simulator.output_shaft
                 ),
-                consecutive_failures
+                consecutive_failures,
+                0.0
             ], dtype=np.float32)
             
         return np.array([
@@ -140,7 +138,8 @@ class GearEnv(gym.Env):
             state["last_gear_teeth"],
             state["last_gear_radius"],
             state["distance_to_target"],
-            consecutive_failures
+            consecutive_failures,
+            clearance
         ], dtype=np.float32)
         
     # VERVANG DE HUIDIGE FUNCTIE DOOR DEZE:
@@ -168,11 +167,11 @@ class GearEnv(gym.Env):
             return {
                 "gears": layout_data,
                 "path": self.optimal_path,
-                "boundaries": boundaries_list,     # <-- FIX
-                "input_shaft": input_shaft_dict,   # <-- FIX
-                "output_shaft": output_shaft_dict  # <-- FIX
+                "boundaries": boundaries_list,     
+                "input_shaft": input_shaft_dict,   
+                "output_shaft": output_shaft_dict  
             }
-            # --- *** EINDE VAN DE CORRECTIE *** ---
+           
             
         except Exception as e:
             print(f"FOUT bij ophalen layout data: {e}")

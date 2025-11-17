@@ -14,6 +14,12 @@ except ImportError:
     from common.data_models import Point, GearSet
     from gear_generator.factory import GearFactory
 
+# Bovenaan in simulator.py
+try:
+    from ..rl_agent.reward import compute_terminal_reward # Pas pad aan indien nodig
+except ImportError:
+    # Fallback of dummy functie als bestand niet gevonden wordt
+    pass
 
 class GearTrainSimulator:
     def __init__(self, path: Union[List[List[float]], List[Point]],
@@ -254,37 +260,53 @@ class GearTrainSimulator:
         
         # Bepaal de fout (Positief = opening, Negatief = overlap)
         error = dist_to_output_center - required_mesh_distance
-        
+        #Gewerkt met precieze tolleranties om een nauwkeurig resultaat te krijgen
         # Tolerantie voor een succesvolle mesh (alleen een OPENING)
-        MESH_TOLERANCE = 0.005 # Max 6.0mm opening is succes
+        MESH_TOLERANCE = 0.005 # Max 0.005mm opening is succes
         
         # Tolerantie voor een botsing (elke OVERLAP)
-        COLLISION_TOLERANCE = -0.001 # Max 0.1mm overlap is toegestaan
+        COLLISION_TOLERANCE = -0.001 # Max 0.001mm overlap is toegestaan
 
         # 1. Check op BOTSING (error is te negatief)
         if error < COLLISION_TOLERANCE:
-            reward -= 150.0  # Zware straf voor het botsen met het einddoel
+            reward -= 1000.0  # Zware straf voor het botsen met het einddoel
             done = True
             info["error"] = f"Collision with output gear (overlap: {error:.2f})"
 
-        # 2. Check op MESH (error is 0 of een kleine opening)
+        # 2. Check op MESH (error is een grote getal of klein afhankelijk van de complexiteit van de figuur)
         elif error <= MESH_TOLERANCE:
-            # SUCCES! We zijn binnen de tolerantie.
+            reward -= 500.0  # Zware straf voor het botsen met het einddoel
+            # SUCCES!
             done = True
             info["success"] = f"Finale mesh bereikt (opening: {error:.2f})."
             
-            # Bereken de Koppel Kwaliteit
+            # --- DATA VERZAMELEN VOOR REWARD.PY ---
             current_ratio = self.calculate_current_torque_ratio()
-            torque_error = abs(current_ratio - self.target_torque_ratio)
-            torque_quality = math.exp(-5.0 * torque_error) # Streng
-            final_reward = 100.0 * torque_quality
+            
+            # Bereken massa/oppervlakte (simpele benadering)
+            total_mass = self.calculate_total_weight() # U heeft deze methode al in simulator.py
+            total_area = self.calculate_space_efficiency() # U heeft deze ook
+            
+            # --- ROEP DE EXTERNE FUNCTIE AAN ---
+            # Dit vervangt de hardcoded "100 * quality" logica
+            try:
+                final_reward = compute_terminal_reward(
+                    current_ratio=current_ratio,
+                    target_ratio=self.target_torque_ratio,
+                    total_mass=total_mass,
+                    total_area=total_area,
+                    torque_weight=1.0,       # Pas deze gewichten aan naar wens
+                    space_weight=0.05,       # Klein gewicht om geometrie niet te verstoren
+                    weight_penalty_coef=0.05
+                )
+            except NameError:
+                # Fallback als import mislukte: gebruik de oude logica
+                torque_error = abs(current_ratio - self.target_torque_ratio)
+                final_reward = 100.0 * math.exp(-5.0 * torque_error)
+            
             reward += final_reward
             
-            print(f"DEBUG MESH: Ratio={current_ratio:.2f}, Fout={torque_error:.2f}, Kwaliteit={torque_quality:.2f}, Beloning={final_reward:.2f}")
-
-        # (Als 'error > MESH_TOLERANCE', is de opening te groot en gaat de episode door)
-        
-        # --- EINDE CORRECTIE ---
+            print(f"DEBUG MESH: Ratio={current_ratio:.2f}, Reward via reward.py={final_reward:.2f}")
 
         if not done and self.distance_on_path >= self._path_total_length() - (self.output_gear.driven_radius * 0.5):
             reward -= 50.0
@@ -634,3 +656,26 @@ class GearTrainSimulator:
                   except Exception as e:
                        print(f"WAARSCHUWING Weight Calc: Fout: {e}")
         return total_interm_area * 0.01
+    
+
+    def get_available_clearance(self) -> float:
+    #Calculates the distance from the active gear center to the nearest boundary.
+    #Returns 0.0 if no active gear exists yet (start of episode).
+
+        target_point = None
+        
+        # If we have a last gear, use its center
+        if self.last_gear:
+            target_point = self.last_gear.center
+        # If not, use the input shaft (start of chain)
+        elif self.input_shaft:
+            target_point = self.input_shaft
+            
+        if target_point:
+            dist = self._distance_to_boundary(target_point, self.boundaries)
+            # Subtract the radius of the current gear to get "remaining" space, 
+            # or just return the distance to center. 
+            # Returning distance to center is safer/simpler for the AI to learn from.
+            return float(dist)
+            
+        return 0.0

@@ -43,3 +43,36 @@ def compute_reward(
         weight_penalty_coef * weight_penalty
     )
     return reward
+
+def compute_terminal_reward(
+    current_ratio: float,
+    target_ratio: float,
+    total_mass: float,
+    total_area: float,
+    torque_weight: float = 1.0,
+    space_weight: float = 0.1,
+    weight_penalty_coef: float = 0.1
+) -> float:
+    """
+    Berekent de eindscore alleen bij een succesvolle mesh.
+    """
+    # 1. Torque Component (De belangrijkste)
+    # Gebruik een scherpe exponentiële straf voor afwijkingen
+    torque_diff = abs(current_ratio - target_ratio)
+    # Strenger dan voorheen: -5.0 factor zorgt voor precisie
+    torque_quality = math.exp(-5.0 * torque_diff) 
+    torque_reward = 100.0 * torque_quality * torque_weight
+
+    # 2. Space Component (Optioneel: beloon compactheid)
+    # Hoe kleiner de oppervlakte, hoe beter? Of juist hoe efficiënter gevuld?
+    # Laten we aannemen: minder oppervlakte gebruik is beter (kostenbesparing)
+    space_penalty = total_area * space_weight
+
+    # 3. Weight Component (Straf voor zwaar design)
+    weight_penalty = total_mass * weight_penalty_coef
+
+    # Totale Formule
+    # Basis succesbonus (+100) zit verwerkt in de torque_reward (als ratio perfect is)
+    final_reward = torque_reward - space_penalty - weight_penalty
+    
+    return final_reward

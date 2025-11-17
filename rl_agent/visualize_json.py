@@ -128,12 +128,14 @@ def plot_gear_layout(config_data, layout_data, save_path=None):
     handles, labels = ax.get_legend_handles_labels()
     
     legend_patches = [
-        mpatches.Patch(edgecolor=colors['pitch_circle_1'], facecolor='none', label='Steekcirkel (Grootste)', linestyle='solid', linewidth=1),
-        mpatches.Patch(edgecolor=colors['pitch_circle_2'], facecolor='none', label='Steekcirkel (Kleinste)', linestyle='solid', linewidth=1),
-        plt.Line2D([0], [0], marker='o', color='none', label='Center Punt', markerfacecolor=colors['center_point'], markersize=4)
+        mpatches.Patch(edgecolor=colors['pitch_circle_1'], facecolor='none', label='Pitch Circle (Largest)', linestyle='solid', linewidth=1),
+        mpatches.Patch(edgecolor=colors['pitch_circle_2'], facecolor='none', label='Pitch Circle (Smallest)', linestyle='solid', linewidth=1),
+        plt.Line2D([0], [0], marker='o', color='none', label='Center Point', markerfacecolor=colors['center_point'], markersize=4)
+        
     ]
     
-    ax.legend(handles=handles + legend_patches, loc='upper left', bbox_to_anchor=(1.02, 1.0), borderaxespad=0.)
+    #ax.legend(handles=handles + legend_patches, loc='upper left', bbox_to_anchor=(1.02, 1.0), borderaxespad=0.)
+    ax.legend(handles=handles + legend_patches, loc='upper left', bbox_to_anchor=(1.00, 1.0), borderaxespad=0.)
     # --- EINDE AANPASSING ---
     
     ax.grid(True, linestyle='solid', alpha=0.5, color="#AAAAAA") 
