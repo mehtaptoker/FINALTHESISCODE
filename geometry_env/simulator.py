@@ -275,7 +275,7 @@ class GearTrainSimulator:
 
         # 2. Check op MESH (error is een grote getal of klein afhankelijk van de complexiteit van de figuur)
         elif error <= MESH_TOLERANCE:
-            reward -= 500.0  # Zware straf voor het botsen met het einddoel
+            reward -= 500.0  # Zware straf voor het op elkaar liggen van de tandwielen
             # SUCCES!
             done = True
             info["success"] = f"Finale mesh bereikt (opening: {error:.2f})."
