@@ -1,3 +1,4 @@
+#####This code is debugged and adapted with help of G00GLE GEMINI############
 import math
 import sys
 import os

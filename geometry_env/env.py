@@ -1,4 +1,4 @@
-# ADD THIS LINE AT THE VERY TOP OF geometry_env/env.py
+#####This code is debugged and adapted with help of G00GLE GEMINI############
 import os; print(f"--- LOADING ENV.PY FROM THIS EXACT FILE: {os.path.abspath(__file__)} ---")
 print("--- LOADING THE NEW, ADAPTED ENV.PY (VERSION 123) ---")
 # --- End of test line ---

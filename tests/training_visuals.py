@@ -1,4 +1,5 @@
 # test_known_solution.py
+#####This code is made with help of G00GLE GEMINI############
 #
 # Dit script valideert de RL-methode door te testen of de agent
 # een specifieke, vooraf gedefinieerde en correcte tandwiel-oplossing kan leren.

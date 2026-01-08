@@ -1,3 +1,4 @@
+#####This code is debugged and adapted with help of G00GLE GEMINI############
 import json
 import matplotlib.pyplot as plt
 from finder import Pathfinder # Import your Pathfinder class

@@ -1,4 +1,5 @@
-import json
+#####This code is debugged and adapted with help of G00GLE GEMINI############
+mport json
 import argparse
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches

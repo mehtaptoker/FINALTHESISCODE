@@ -1,3 +1,4 @@
+#####This code is made with help of G00GLE GEMINI############
 # compare_solution.py
 #
 # This script compares the AI-generated gear train solution against a
