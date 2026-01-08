@@ -3,9 +3,7 @@ import sys
 import os
 import numpy as np
 from typing import List, Tuple, Union, Optional, Dict
-# Verwijder sys.path manipulatie als common, physics_validator, etc. correct geïnstalleerd zijn
 
-# Probeer imports relatief te maken als ze binnen hetzelfde package zitten
 try:
     from ..common.data_models import Point, GearSet
     from ..gear_generator.factory import GearFactory
@@ -174,11 +172,19 @@ class GearTrainSimulator:
 
         return self._get_state(), 0.0, False, {}
 
-    # VERVANG UW HUIDIGE step() METHODE IN simulator.py MET DEZE:
-
-    # VERVANG UW HUIDIGE step() METHODE IN simulator.py MET DEZE:
-
-    # VERVANG UW HUIDIGE step() METHODE IN simulator.py MET DEZE:
+    def calculate_min_system_clearance(self) -> float:
+        """Calculates the minimum clearance (distance to boundary) of the entire gear train."""
+        min_clearance = float('inf')
+        for gear in self.gears:
+            # Distance from center to boundary
+            dist_to_boundary = self._distance_to_boundary(gear.center, self.boundaries)
+            # Clearance = Distance - Radius
+            # (Assuming gear.radii stores pitch radii, taking the max for safety)
+            radius = max(gear.radii) if gear.radii else 0
+            clearance = dist_to_boundary - radius
+            if clearance < min_clearance:
+                min_clearance = clearance
+        return min_clearance
 
     def step(self, action: tuple):
         """Plaatst een nieuw tussenliggend tandwiel."""
@@ -252,40 +258,49 @@ class GearTrainSimulator:
 
         # --- START CORRECTIE: SUCCES CHECK ---
         
-        # Bereken de AFSTAND tot de output gear
+        # --- START CORRECTIE: SUCCES CHECK ---
         dist_to_output_center = self._distance(self.last_gear.center, self.output_gear.center)
-        
-        # Bereken de VEREISTE AFSTAND voor een perfecte mesh
         required_mesh_distance = self.last_gear.driving_radius + self.output_gear.driven_radius
-        
-        # Bepaal de fout (Positief = opening, Negatief = overlap)
         error = dist_to_output_center - required_mesh_distance
-        #Gewerkt met precieze tolleranties om een nauwkeurig resultaat te krijgen
-        # Tolerantie voor een succesvolle mesh (alleen een OPENING)
-        MESH_TOLERANCE = 0.005 # Max 0.005mm opening is succes
         
-        # Tolerantie voor een botsing (elke OVERLAP)
-        COLLISION_TOLERANCE = -0.001 # Max 0.001mm overlap is toegestaan
+        MESH_TOLERANCE = 0.005 
+        COLLISION_TOLERANCE = -0.001
 
-        # 1. Check op BOTSING (error is te negatief)
         if error < COLLISION_TOLERANCE:
-            reward -= 1000.0  # Zware straf voor het botsen met het einddoel
+            reward -= 1000.0
             done = True
             info["error"] = f"Collision with output gear (overlap: {error:.2f})"
 
-        # 2. Check op MESH (error is een grote getal of klein afhankelijk van de complexiteit van de figuur)
         elif error <= MESH_TOLERANCE:
-            reward -= 500.0  # Zware straf voor het op elkaar liggen van de tandwielen
+            reward -= 1000.0  # Zware straf voor het op elkaar liggen van de tandwielen
             # SUCCES!
             done = True
             info["success"] = f"Finale mesh bereikt (opening: {error:.2f})."
             
-            # --- DATA VERZAMELEN VOOR REWARD.PY ---
+            # --- CALCULATE METRICS FOR THESIS ---
             current_ratio = self.calculate_current_torque_ratio()
+            total_mass = self.calculate_total_weight()
+            total_area = self.calculate_space_efficiency()
+            safety_clearance = self.calculate_min_system_clearance()
             
-            # Bereken massa/oppervlakte (simpele benadering)
-            total_mass = self.calculate_total_weight() # U heeft deze methode al in simulator.py
-            total_area = self.calculate_space_efficiency() # U heeft deze ook
+            # Avoid division by zero
+            mass_space_ratio = (total_mass / total_area) if total_area > 0 else 0.0
+            
+            # PACK METRICS INTO INFO
+            info["thesis_metrics"] = {
+                "target_ratio": self.target_torque_ratio,
+                "reached_ratio": current_ratio,
+                "ratio_error": abs(current_ratio - self.target_torque_ratio),
+                "safety_clearance": safety_clearance,
+                "mass_space_ratio": mass_space_ratio,
+                "total_mass": total_mass,
+                "total_area": total_area
+            }
+
+        # 1. Check op BOTSING (error is te negatief)
+        
+
+        # 2. Check op MESH (error is een grote getal of klein afhankelijk van de complexiteit van de figuur)
             
             # --- ROEP DE EXTERNE FUNCTIE AAN ---
             # Dit vervangt de hardcoded "100 * quality" logica

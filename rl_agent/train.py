@@ -1,10 +1,11 @@
 import time
 import os
-import json # <- REQUIRED: For saving the gear placement data
+import json 
 import argparse
 import numpy as np
 import sys
 import torch
+import csv
 import matplotlib.pyplot as plt
 
 # Ensure project root is in path
@@ -12,9 +13,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from geometry_env.env import GearEnv
 from rl_agent.agents.ppo_agent import PPOAgent
-# --- PLAK DEZE KLASSE HIER ---
+
 class NumpyEncoder(json.JSONEncoder):
-    """ Speciale json encoder voor numpy types """
     def default(self, obj):
         if isinstance(obj, (np.integer, np.int64)):
             return int(obj)
@@ -25,7 +25,7 @@ class NumpyEncoder(json.JSONEncoder):
         elif isinstance(obj, torch.Tensor):
             return obj.cpu().numpy().tolist()
         return super(NumpyEncoder, self).default(obj)
-# --- EINDE VAN DE KLASSE ---
+
 
 def plot_learning_curve(episode_rewards):
     """
@@ -101,8 +101,7 @@ def main():
     # 4. Voeg de paden toe die de env nodig heeft
     env_config['json_path'] = args.config_path
     env_config['constraints_path'] = args.constraints_path
-    # --- EINDE VAN DE FIX ---
-
+    
     env = GearEnv(env_config)
 
     state_dim = env.observation_space.shape[0]
@@ -126,6 +125,19 @@ def main():
     best_layout_path = os.path.join(args.output_dir, "best_gear_layout.json") 
     best_layout_data = None
     # -----------------------------------------------------
+    # --- Setup Thesis Logging ---
+    success_log_path = os.path.join(args.output_dir, "thesis_success_log.csv")
+    print(f"Logging all successful runs to: {success_log_path}")
+    
+    # Open CSV and write headers
+    # We keep the file open or open/append in the loop. Appending is safer against crashes.
+    with open(success_log_path, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "Episode", "Step", "Total_Reward", 
+            "Target_Ratio", "Reached_Ratio", "Ratio_Error", 
+            "Safety_Clearance", "Mass_Space_Ratio"
+        ])
 
     # --- Training Loop ---
     for episode in range(1, args.episodes + 1):
@@ -138,6 +150,26 @@ def main():
             action, log_prob = agent.act(state)
             next_state, reward, terminated, truncated, info = env.step(action)
             done = terminated or truncated
+
+            # --- THESIS DATA LOGGING ---
+            # Check if this step was a success and contains our metrics
+            if "success" in info and "thesis_metrics" in info:
+                metrics = info["thesis_metrics"]
+                total_ep_reward = episode_reward + reward
+                # Append to CSV
+                with open(success_log_path, 'a', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow([
+                        episode, 
+                        step, 
+                        f"{total_ep_reward:.2f}",
+                        f"{metrics['target_ratio']:.4f}",
+                        f"{metrics['reached_ratio']:.4f}",
+                        f"{metrics['ratio_error']:.4f}",
+                        f"{metrics['safety_clearance']:.4f}",
+                        f"{metrics['mass_space_ratio']:.4f}"
+                    ])
+                print(f"   >>> Logged success stats for Episode {episode}")
 
             agent.memory.add(state, action, reward, done, log_prob)
 
